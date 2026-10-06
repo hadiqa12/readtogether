@@ -9,7 +9,14 @@ npm install
 npm run dev
 ```
 
-Open the local URL shown in the terminal. Presence is synchronized between browser tabs on the same origin with `BroadcastChannel` and `localStorage`; inactive readers expire automatically.
+Open the local URL shown in the terminal. Presence is synchronized through the
+Next.js app server, so separate browsers and devices using the same server see
+one another when they enter the same genre. Clients heartbeat while connected,
+send a leave event on exit, and expire automatically after a short disconnect.
+
+The preview uses an in-memory presence store. It is ideal for one long-running
+app process; a horizontally scaled deployment should replace that store with a
+shared service such as Redis or a Durable Object.
 
 ## Project checks
 

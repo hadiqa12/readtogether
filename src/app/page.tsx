@@ -34,19 +34,10 @@ const DEMO_READERS: Reader[] = [
   { id: "silas", name: "Silas Reed", book: "Citizen", genre: "poetry", x: 76, y: 60, lastSeen: 0, isDemo: true },
 ];
 
-const PRESENCE_KEY = "common-margins-presence";
-const STALE_AFTER = 18_000;
 const genreKeys = Object.keys(GENRES) as Genre[];
 
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
-}
-
-function readPresence(): Reader[] {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(PRESENCE_KEY) ?? "[]") as Reader[];
-    return parsed.filter((reader) => Date.now() - reader.lastSeen < STALE_AFTER);
-  } catch { return []; }
 }
 
 function GenreArtwork({ genre, compact = false }: { genre: Genre; compact?: boolean }) {
@@ -81,6 +72,7 @@ export default function Home() {
   const [liveReaders, setLiveReaders] = useState<Reader[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [presenceLoading, setPresenceLoading] = useState(true);
+  const [presenceError, setPresenceError] = useState(false);
 
   const readers = useMemo(() => {
     if (!me) return [];
@@ -90,27 +82,79 @@ export default function Home() {
 
   useEffect(() => {
     if (stage !== "world" || !me) return;
-    const channel = new BroadcastChannel("common-margins-room");
-    const receive = () => setLiveReaders(readPresence());
-    const sync = () => {
-      const next = [...readPresence().filter((reader) => reader.id !== me.id), { ...me, lastSeen: Date.now() }];
-      localStorage.setItem(PRESENCE_KEY, JSON.stringify(next)); setLiveReaders(next); channel.postMessage("presence");
+    let active = true;
+
+    const updateReaders = (next: Reader[]) => {
+      if (!active) return;
+      setLiveReaders(next);
+      setPresenceLoading(false);
+      setPresenceError(false);
     };
-    const handleStorage = (event: StorageEvent) => { if (event.key === PRESENCE_KEY) receive(); };
-    sync();
-    const interval = window.setInterval(sync, 5_000);
-    const loadingTimer = window.setTimeout(() => setPresenceLoading(false), 850);
-    channel.addEventListener("message", receive); window.addEventListener("storage", handleStorage);
+
+    const join = async () => {
+      const response = await fetch("/api/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "join", reader: me }),
+      });
+      if (!response.ok) throw new Error("Presence join failed");
+      const data = (await response.json()) as { readers: Reader[] };
+      updateReaders(data.readers);
+    };
+
+    const heartbeat = async () => {
+      try {
+        const response = await fetch("/api/presence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "heartbeat",
+            id: me.id,
+            genre: me.genre,
+          }),
+        });
+        if (!response.ok) throw new Error("Presence heartbeat failed");
+        const data = (await response.json()) as {
+          readers: Reader[];
+          missing?: boolean;
+        };
+        if (data.missing) {
+          await join();
+        } else {
+          updateReaders(data.readers);
+        }
+      } catch {
+        if (!active) return;
+        setPresenceLoading(false);
+        setPresenceError(true);
+      }
+    };
+
+    join().catch(() => {
+      if (!active) return;
+      setPresenceLoading(false);
+      setPresenceError(true);
+    });
+    const interval = window.setInterval(heartbeat, 2_500);
+
     return () => {
-      window.clearInterval(interval); window.clearTimeout(loadingTimer);
-      localStorage.setItem(PRESENCE_KEY, JSON.stringify(readPresence().filter((reader) => reader.id !== me.id)));
-      channel.postMessage("presence"); channel.close(); window.removeEventListener("storage", handleStorage);
+      active = false;
+      window.clearInterval(interval);
+      const payload = JSON.stringify({ action: "leave", id: me.id });
+      if (!navigator.sendBeacon("/api/presence", payload)) {
+        void fetch("/api/presence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true,
+        });
+      }
     };
   }, [me, stage]);
 
   function handlePhoto(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]; if (!file) return;
-    if (!file.type.startsWith("image/") || file.size > 3_000_000) { setError("Choose an image smaller than 3 MB."); return; }
+    if (!file.type.startsWith("image/") || file.size > 900_000) { setError("Choose an image smaller than 900 KB."); return; }
     const reader = new FileReader();
     reader.onload = () => { setPhoto(String(reader.result)); setError(""); };
     reader.onerror = () => setError("We couldn’t read that image. Try another file."); reader.readAsDataURL(file);
@@ -140,13 +184,13 @@ export default function Home() {
           <button type="button" className="brand-lockup brand-light" onClick={leaveWorld}><span className="brand-mark"><BookOpen /></span><span><strong>Common Margins</strong><small>Read somewhere else</small></span></button>
           <div className="world-header-actions"><div className="genre-chip"><span className="live-dot" />{genreInfo.label}</div><Button variant="ghost" className="leave-button" onClick={leaveWorld}><ArrowLeft /><span className="hidden sm:inline">Choose another door</span></Button></div>
         </header>
-        <section className="world-intro" aria-labelledby="world-title"><p><Sparkles /> {genreInfo.eyebrow}</p><h1 id="world-title">{genreInfo.prompt}</h1><span>{presenceLoading ? "Looking for nearby readers…" : `${companions} ${companions === 1 ? "reader is" : "readers are"} here with you`}</span></section>
+        <section className="world-intro" aria-labelledby="world-title"><p><Sparkles /> {genreInfo.eyebrow}</p><h1 id="world-title">{genreInfo.prompt}</h1><span>{presenceError ? "Connection paused—trying again…" : presenceLoading ? "Looking for nearby readers…" : `${companions} ${companions === 1 ? "reader is" : "readers are"} here with you`}</span></section>
         <div className="world-map" aria-label="Readers in this world">
           {presenceLoading ? <div className="presence-loading"><span /><span /><span /></div> : readers.map((reader) => <ReaderAvatar key={reader.id} reader={reader} mine={reader.id === me.id} selected={reader.id === selectedId} onSelect={() => setSelectedId(reader.id)} />)}
-          {!presenceLoading && readers.length === 1 ? <div className="empty-world"><DoorOpen /><strong>You found a quiet corner.</strong><span>Keep this door open in another tab to invite a fellow reader in.</span></div> : null}
+          {!presenceLoading && readers.length === 1 ? <div className="empty-world"><DoorOpen /><strong>You found a quiet corner.</strong><span>Invite a fellow reader to this genre from any browser or device.</span></div> : null}
         </div>
         <div className="world-footer">
-          <div className="presence-summary"><Users /><div><strong>{presenceLoading ? "Gathering the room" : `${readers.length} in this world`}</strong><span>Only readers through the {genreInfo.label.toLowerCase()} door appear here</span></div></div>
+          <div className="presence-summary"><Users /><div><strong>{presenceError ? "Reconnecting to readers" : presenceLoading ? "Gathering the room" : `${readers.length} in this world`}</strong><span>Live across devices · isolated to the {genreInfo.label.toLowerCase()} door</span></div></div>
           <div className="my-book"><span>Your current read</span><strong>{me.book}</strong></div>
         </div>
         {selectedReader ? <aside className="reader-card"><button type="button" onClick={() => setSelectedId(null)} aria-label="Close reader card"><X /></button><Avatar className="reader-card-avatar">{selectedReader.photo ? <AvatarImage src={selectedReader.photo} alt="" /> : null}<AvatarFallback>{initials(selectedReader.name)}</AvatarFallback></Avatar><div><span>{selectedReader.id === me.id ? "This is you" : "Reading nearby"}</span><strong>{selectedReader.name}</strong><p><BookOpen /> {selectedReader.book}</p></div></aside> : null}
