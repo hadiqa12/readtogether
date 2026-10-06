@@ -65,6 +65,7 @@ export default function Home() {
   const [name, setName] = useState("");
   const [book, setBook] = useState("");
   const [genre, setGenre] = useState<Genre>("fantasy");
+  const [genreOpen, setGenreOpen] = useState(false);
   const [photo, setPhoto] = useState<string>();
   const [error, setError] = useState("");
   const [stage, setStage] = useState<"onboarding" | "entering" | "world">("onboarding");
@@ -209,7 +210,7 @@ export default function Home() {
           <form onSubmit={enterWorld} className="onboarding-form">
             <div className="photo-name-row"><div><input ref={fileInput} type="file" accept="image/*" className="sr-only" onChange={handlePhoto} aria-label="Upload a profile photo" /><button type="button" className="photo-button" onClick={() => fileInput.current?.click()} aria-label={photo ? "Change profile photo" : "Add profile photo"}><Avatar className="photo-preview">{photo ? <AvatarImage src={photo} alt="" /> : null}<AvatarFallback><Camera /></AvatarFallback></Avatar><span>{photo ? "Change" : "Add photo"}<small>Optional</small></span></button></div><div className="field"><Label htmlFor="name">Your name</Label><Input id="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="How should readers see you?" autoComplete="name" maxLength={40} /></div></div>
             <div className="field"><Label htmlFor="book">What are you reading?</Label><Input id="book" value={book} onChange={(event) => setBook(event.target.value)} placeholder="Book title" maxLength={80} /></div>
-            <div className="field"><Label htmlFor="genre">Which door will you take?</Label><Select value={genre} onValueChange={(value) => value && setGenre(value as Genre)}><SelectTrigger id="genre" className="genre-select"><SelectValue /></SelectTrigger><SelectContent>{genreKeys.map((key) => <SelectItem key={key} value={key}><span className={`genre-swatch swatch-${key}`} />{GENRES[key].label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="field"><Label htmlFor="genre">Which door will you take?</Label><Select value={genre} open={genreOpen} onOpenChange={setGenreOpen} onValueChange={(value) => value && setGenre(value as Genre)}><SelectTrigger id="genre" className="genre-select" onClick={() => setGenreOpen(true)}><SelectValue /></SelectTrigger><SelectContent>{genreKeys.map((key) => <SelectItem key={key} value={key}><span className={`genre-swatch swatch-${key}`} />{GENRES[key].label}</SelectItem>)}</SelectContent></Select></div>
             {error ? <p className="form-error" role="alert">{error}</p> : null}<Button type="submit" className="enter-button">Enter this reading world <ArrowRight /></Button>
           </form>
         </div>
