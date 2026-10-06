@@ -50,12 +50,12 @@ function GenreArtwork({ genre, compact = false }: { genre: Genre; compact?: bool
   );
 }
 
-function ReaderAvatar({ reader, mine, selected, onSelect }: { reader: Reader; mine: boolean; selected: boolean; onSelect: () => void }) {
+function ReaderAvatar({ reader, selected, onSelect }: { reader: Reader; selected: boolean; onSelect: () => void }) {
   return (
     <button type="button" className={`reader-marker ${selected ? "reader-marker-selected" : ""}`} style={{ left: `${reader.x}%`, top: `${reader.y}%` }} onClick={onSelect} aria-label={`View ${reader.name}, reading ${reader.book}`}>
       <span className="reader-ripple" />
       <Avatar className="reader-avatar">{reader.photo ? <AvatarImage src={reader.photo} alt="" /> : null}<AvatarFallback className="reader-fallback">{initials(reader.name)}</AvatarFallback></Avatar>
-      <span className="reader-label"><strong>{mine ? "You" : reader.name.split(" ")[0]}</strong><span>{reader.book}</span></span>
+      <span className="reader-label"><strong>{reader.name}</strong><span>{reader.book}</span></span>
     </button>
   );
 }
@@ -173,7 +173,7 @@ export default function Home() {
 
   if (stage === "entering") return (
     <main className={`transition-screen genre-${genre}`}><GenreArtwork genre={genre} />
-      <div className="transition-copy"><LoaderCircle className="size-5 animate-spin" /><p>Opening {GENRES[genre].eyebrow.toLowerCase()}…</p><span>Making a place for you and your book</span></div>
+      <div className="transition-copy"><LoaderCircle className="size-5 animate-spin" /><p>Opening {GENRES[genre].eyebrow.toLowerCase()}…</p><span>Making a place for {name.trim()} and {book.trim()}</span></div>
     </main>
   );
 
@@ -185,16 +185,16 @@ export default function Home() {
           <button type="button" className="brand-lockup brand-light" onClick={leaveWorld}><span className="brand-mark"><BookOpen /></span><span><strong>Common Margins</strong><small>Read somewhere else</small></span></button>
           <div className="world-header-actions"><div className="genre-chip"><span className="live-dot" />{genreInfo.label}</div><Button variant="ghost" className="leave-button" onClick={leaveWorld}><ArrowLeft /><span className="hidden sm:inline">Choose another door</span></Button></div>
         </header>
-        <section className="world-intro" aria-labelledby="world-title"><p><Sparkles /> {genreInfo.eyebrow}</p><h1 id="world-title">{genreInfo.prompt}</h1><span>{presenceError ? "Connection paused—trying again…" : presenceLoading ? "Looking for nearby readers…" : `${companions} ${companions === 1 ? "reader is" : "readers are"} here with you`}</span></section>
+        <section className="world-intro" aria-labelledby="world-title"><p><Sparkles /> {genreInfo.eyebrow}</p><h1 id="world-title">{genreInfo.prompt}</h1><span>{presenceError ? "Connection paused—trying again…" : presenceLoading ? "Looking for nearby readers…" : `${companions} ${companions === 1 ? "reader shares" : "readers share"} this world with ${me.name}`}</span></section>
         <div className="world-map" aria-label="Readers in this world">
-          {presenceLoading ? <div className="presence-loading"><span /><span /><span /></div> : readers.map((reader) => <ReaderAvatar key={reader.id} reader={reader} mine={reader.id === me.id} selected={reader.id === selectedId} onSelect={() => setSelectedId(reader.id)} />)}
-          {!presenceLoading && readers.length === 1 ? <div className="empty-world"><DoorOpen /><strong>You found a quiet corner.</strong><span>Invite a fellow reader to this genre from any browser or device.</span></div> : null}
+          {presenceLoading ? <div className="presence-loading"><span /><span /><span /></div> : readers.map((reader) => <ReaderAvatar key={reader.id} reader={reader} selected={reader.id === selectedId} onSelect={() => setSelectedId(reader.id)} />)}
+          {!presenceLoading && readers.length === 1 ? <div className="empty-world"><DoorOpen /><strong>{me.name} found a quiet corner.</strong><span>Invite a fellow reader to this genre from any browser or device.</span></div> : null}
         </div>
         <div className="world-footer">
           <div className="presence-summary"><Users /><div><strong>{presenceError ? "Reconnecting to readers" : presenceLoading ? "Gathering the room" : `${readers.length} in this world`}</strong><span>Live across devices · isolated to the {genreInfo.label.toLowerCase()} door</span></div></div>
-          <div className="my-book"><span>Your current read</span><strong>{me.book}</strong></div>
+          <div className="my-book"><span>{me.name}’s current read</span><strong>{me.book}</strong></div>
         </div>
-        {selectedReader ? <aside className="reader-card"><button type="button" onClick={() => setSelectedId(null)} aria-label="Close reader card"><X /></button><Avatar className="reader-card-avatar">{selectedReader.photo ? <AvatarImage src={selectedReader.photo} alt="" /> : null}<AvatarFallback>{initials(selectedReader.name)}</AvatarFallback></Avatar><div><span>{selectedReader.id === me.id ? "This is you" : "Reading nearby"}</span><strong>{selectedReader.name}</strong><p><BookOpen /> {selectedReader.book}</p></div></aside> : null}
+        {selectedReader ? <aside className="reader-card"><button type="button" onClick={() => setSelectedId(null)} aria-label="Close reader card"><X /></button><Avatar className="reader-card-avatar">{selectedReader.photo ? <AvatarImage src={selectedReader.photo} alt="" /> : null}<AvatarFallback>{initials(selectedReader.name)}</AvatarFallback></Avatar><div><span>Reading in this world</span><strong>{selectedReader.name}</strong><p><BookOpen /> {selectedReader.book}</p></div></aside> : null}
       </main>
     );
   }
