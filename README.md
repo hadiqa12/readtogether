@@ -14,9 +14,8 @@ Next.js app server, so separate browsers and devices using the same server see
 one another when they enter the same genre. Clients heartbeat while connected,
 send a leave event on exit, and expire automatically after a short disconnect.
 
-The preview uses an in-memory presence store. It is ideal for one long-running
-app process; a horizontally scaled deployment should replace that store with a
-shared service such as Redis or a Durable Object.
+Without Redis environment variables, local development uses an in-memory
+fallback. That fallback is intentionally not suitable for production.
 
 ## Project checks
 
@@ -25,40 +24,32 @@ npm run lint
 npm run build
 ```
 
-Built with Next.js, TypeScript, Tailwind CSS, shadcn/ui, and Lucide icons.
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Production presence on Vercel
 
-## Getting Started
+Connect a free Upstash Redis database and set one complete REST credential pair
+in Vercel for Production, Preview, and Development:
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```text
+UPSTASH_REDIS_REST_URL
+UPSTASH_REDIS_REST_TOKEN
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Vercel Marketplace Redis integrations that expose the legacy KV names are also
+supported:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+KV_REST_API_URL
+KV_REST_API_TOKEN
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Do not prefix these variables with `NEXT_PUBLIC_`; they are server-only
+credentials. If any Redis variable is present without its matching pair, the
+presence API returns `503` instead of silently using process-local state.
 
-## Learn More
+Readers are stored with a 15-second TTL and indexed by genre in Redis, allowing
+separate Vercel function instances to share live presence. Names, books,
+positions, and optional photos retain the same validation used by the local
+preview.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Built with Next.js, TypeScript, Tailwind CSS, shadcn/ui, Lucide icons, and
+Upstash Redis.
