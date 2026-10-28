@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Redis } from "@upstash/redis";
 
 const GENRES = new Set([
   "fantasy",
@@ -9,9 +8,7 @@ const GENRES = new Set([
   "classics",
   "poetry",
 ]);
-const PRESENCE_TTL_SECONDS = 15;
-const PRESENCE_TTL_MS = PRESENCE_TTL_SECONDS * 1_000;
-const KEY_PREFIX = "common-margins:v1";
+const PRESENCE_TTL_MS = 15_000;
 
 export const dynamic = "force-dynamic";
 
@@ -32,57 +29,11 @@ declare global {
   var commonMarginsPresence: PresenceStore | undefined;
 }
 
-let redisClient: Redis | null | undefined;
-
-function getRedis() {
-  if (redisClient !== undefined) return redisClient;
-
-  const upstashUrl = process.env.UPSTASH_REDIS_REST_URL?.trim();
-  const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
-  const kvUrl = process.env.KV_REST_API_URL?.trim();
-  const kvToken = process.env.KV_REST_API_TOKEN?.trim();
-
-  if (upstashUrl && upstashToken) {
-    redisClient = new Redis({
-      url: upstashUrl,
-      token: upstashToken,
-      enableTelemetry: false,
-    });
-    return redisClient;
-  }
-
-  if (kvUrl && kvToken) {
-    redisClient = new Redis({
-      url: kvUrl,
-      token: kvToken,
-      enableTelemetry: false,
-    });
-    return redisClient;
-  }
-
-  if (upstashUrl || upstashToken || kvUrl || kvToken) {
-    throw new Error(
-      "Redis presence is partially configured. Set both URL and token variables.",
-    );
-  }
-
-  redisClient = null;
-  return redisClient;
-}
-
 function getMemoryStore() {
   return (
     globalThis.commonMarginsPresence ??
     (globalThis.commonMarginsPresence = new Map<string, PresenceReader>())
   );
-}
-
-function readerKey(id: string) {
-  return `${KEY_PREFIX}:reader:${id}`;
-}
-
-function genreKey(genre: string) {
-  return `${KEY_PREFIX}:genre:${genre}`;
 }
 
 function pruneMemory(store: PresenceStore) {
@@ -92,88 +43,28 @@ function pruneMemory(store: PresenceStore) {
   }
 }
 
-async function readersIn(genre: string) {
-  const redis = getRedis();
-  if (!redis) {
-    const store = getMemoryStore();
-    pruneMemory(store);
-    return [...store.values()].filter((reader) => reader.genre === genre);
-  }
-
-  const membersKey = genreKey(genre);
-  await redis.zremrangebyscore(membersKey, 0, Date.now());
-  const ids = await redis.zrange<string[]>(membersKey, 0, -1);
-  if (ids.length === 0) return [];
-
-  const readers = await redis.mget<(PresenceReader | null)[]>(
-    ...ids.map(readerKey),
-  );
-  return readers.filter(
-    (reader): reader is PresenceReader =>
-      reader !== null && reader.genre === genre,
-  );
+function readersIn(genre: string) {
+  const store = getMemoryStore();
+  pruneMemory(store);
+  return [...store.values()].filter((reader) => reader.genre === genre);
 }
 
-async function join(reader: PresenceReader) {
-  const now = Date.now();
-  const next = { ...reader, lastSeen: now };
-  const redis = getRedis();
-  if (!redis) {
-    getMemoryStore().set(next.id, next);
-    return;
-  }
-
-  await redis
-    .pipeline()
-    .set(readerKey(next.id), next, { ex: PRESENCE_TTL_SECONDS })
-    .zadd(genreKey(next.genre), {
-      score: now + PRESENCE_TTL_MS,
-      member: next.id,
-    })
-    .expire(genreKey(next.genre), PRESENCE_TTL_SECONDS * 4)
-    .exec();
+function join(reader: PresenceReader) {
+  const next = { ...reader, lastSeen: Date.now() };
+  getMemoryStore().set(next.id, next);
 }
 
-async function heartbeat(id: string, genre: string) {
-  const redis = getRedis();
-  if (!redis) {
-    const store = getMemoryStore();
-    pruneMemory(store);
-    const existing = store.get(id);
-    if (!existing || existing.genre !== genre) return false;
-    store.set(id, { ...existing, lastSeen: Date.now() });
-    return true;
-  }
-
-  const existing = await redis.get<PresenceReader>(readerKey(id));
+function heartbeat(id: string, genre: string) {
+  const store = getMemoryStore();
+  pruneMemory(store);
+  const existing = store.get(id);
   if (!existing || existing.genre !== genre) return false;
-
-  const now = Date.now();
-  await redis
-    .pipeline()
-    .set(readerKey(id), { ...existing, lastSeen: now }, {
-      ex: PRESENCE_TTL_SECONDS,
-    })
-    .zadd(genreKey(genre), {
-      score: now + PRESENCE_TTL_MS,
-      member: id,
-    })
-    .expire(genreKey(genre), PRESENCE_TTL_SECONDS * 4)
-    .exec();
+  store.set(id, { ...existing, lastSeen: Date.now() });
   return true;
 }
 
-async function leave(id: string) {
-  const redis = getRedis();
-  if (!redis) {
-    getMemoryStore().delete(id);
-    return;
-  }
-
-  const existing = await redis.get<PresenceReader>(readerKey(id));
-  const pipeline = redis.pipeline().del(readerKey(id));
-  if (existing) pipeline.zrem(genreKey(existing.genre), id);
-  await pipeline.exec();
+function leave(id: string) {
+  getMemoryStore().delete(id);
 }
 
 function json(data: unknown, status = 200) {
@@ -181,14 +72,6 @@ function json(data: unknown, status = 200) {
     status,
     headers: { "Cache-Control": "no-store" },
   });
-}
-
-function serviceUnavailable(error: unknown) {
-  console.error(
-    "Presence store unavailable:",
-    error instanceof Error ? error.message : "Unknown Redis error",
-  );
-  return json({ error: "Presence is temporarily unavailable." }, 503);
 }
 
 function validReader(value: unknown): value is PresenceReader {
@@ -224,11 +107,7 @@ export async function GET(request: NextRequest) {
     return json({ error: "Unknown genre." }, 400);
   }
 
-  try {
-    return json({ readers: await readersIn(genre) });
-  } catch (error) {
-    return serviceUnavailable(error);
-  }
+  return json({ readers: readersIn(genre) });
 }
 
 export async function POST(request: NextRequest) {
@@ -246,21 +125,13 @@ export async function POST(request: NextRequest) {
   }
 
   if (body.action === "leave" && typeof body.id === "string") {
-    try {
-      await leave(body.id);
-      return json({ ok: true });
-    } catch (error) {
-      return serviceUnavailable(error);
-    }
+    leave(body.id);
+    return json({ ok: true });
   }
 
   if (body.action === "join" && validReader(body.reader)) {
-    try {
-      await join(body.reader);
-      return json({ readers: await readersIn(body.reader.genre) });
-    } catch (error) {
-      return serviceUnavailable(error);
-    }
+    join(body.reader);
+    return json({ readers: readersIn(body.reader.genre) });
   }
 
   if (
@@ -269,18 +140,14 @@ export async function POST(request: NextRequest) {
     typeof body.genre === "string" &&
     GENRES.has(body.genre)
   ) {
-    try {
-      const found = await heartbeat(body.id, body.genre);
-      if (!found) {
-        return json({
-          missing: true,
-          readers: await readersIn(body.genre),
-        });
-      }
-      return json({ readers: await readersIn(body.genre) });
-    } catch (error) {
-      return serviceUnavailable(error);
+    const found = heartbeat(body.id, body.genre);
+    if (!found) {
+      return json({
+        missing: true,
+        readers: readersIn(body.genre),
+      });
     }
+    return json({ readers: readersIn(body.genre) });
   }
 
   return json({ error: "Invalid presence update." }, 400);
