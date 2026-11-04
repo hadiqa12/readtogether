@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { connectGenrePresence } from "@/lib/presence";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const GENRES = {
@@ -83,74 +84,18 @@ export default function Home() {
 
   useEffect(() => {
     if (stage !== "world" || !me) return;
-    let active = true;
-
-    const updateReaders = (next: Reader[]) => {
-      if (!active) return;
-      setLiveReaders(next);
-      setPresenceLoading(false);
-      setPresenceError(false);
-    };
-
-    const join = async () => {
-      const response = await fetch("/api/presence", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "join", reader: me }),
-      });
-      if (!response.ok) throw new Error("Presence join failed");
-      const data = (await response.json()) as { readers: Reader[] };
-      updateReaders(data.readers);
-    };
-
-    const heartbeat = async () => {
-      try {
-        const response = await fetch("/api/presence", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "heartbeat",
-            id: me.id,
-            genre: me.genre,
-          }),
-        });
-        if (!response.ok) throw new Error("Presence heartbeat failed");
-        const data = (await response.json()) as {
-          readers: Reader[];
-          missing?: boolean;
-        };
-        if (data.missing) {
-          await join();
-        } else {
-          updateReaders(data.readers);
-        }
-      } catch {
-        if (!active) return;
+    return connectGenrePresence(
+      me,
+      (readers) => {
+        setLiveReaders(readers.map((reader) => ({ ...reader, genre: reader.genre as Genre, lastSeen: Date.now() })));
         setPresenceLoading(false);
-        setPresenceError(true);
-      }
-    };
-
-    join().catch(() => {
-      if (!active) return;
-      setPresenceLoading(false);
-      setPresenceError(true);
-    });
-    const interval = window.setInterval(heartbeat, 2_500);
-
-    return () => {
-      active = false;
-      window.clearInterval(interval);
-      const payload = JSON.stringify({ action: "leave", id: me.id });
-      if (!navigator.sendBeacon("/api/presence", payload)) {
-        void fetch("/api/presence", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: payload,
-          keepalive: true,
-        });
-      }
-    };
+        setPresenceError(false);
+      },
+      (status) => {
+        setPresenceLoading(false);
+        setPresenceError(status === "error");
+      },
+    );
   }, [me, stage]);
 
   function handlePhoto(event: ChangeEvent<HTMLInputElement>) {
