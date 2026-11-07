@@ -345,8 +345,9 @@
 .world-intro p { display: flex; justify-content: center; align-items: center; gap: 7px; margin: 0 0 10px; color: rgba(255,255,255,.65); font-size: 10px; letter-spacing: .17em; text-transform: uppercase; }
 .world-intro p svg { width: 13px; }.world-intro h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(28px,4vw,52px); font-weight: 400; letter-spacing: -.04em; line-height: 1.03; }
 .world-intro > span { display: block; margin-top: 10px; color: rgba(255,255,255,.55); font-size: 11px; }
-.world-map { position: absolute; z-index: 5; inset: 180px 0 100px; }
+.world-map { position: absolute; z-index: 5; inset: 240px 0 100px; }
 .reader-marker { position: absolute; display: flex; transform: translate(-50%,-50%); flex-direction: column; align-items: center; border: 0; background: transparent; color: #fff; animation: marker-in .5s ease both; }
+.reader-marker-live { z-index: 2; }
 @keyframes marker-in { from { opacity: 0; transform: translate(-50%,-42%) scale(.8); } }
 .reader-avatar { width: 58px !important; height: 58px !important; border: 3px solid rgba(255,255,255,.86); background: #263a34; box-shadow: 0 12px 30px rgba(0,0,0,.3); transition: transform .25s ease, box-shadow .25s ease; }
 .reader-marker:hover .reader-avatar, .reader-marker-selected .reader-avatar { transform: translateY(-4px) scale(1.07); box-shadow: 0 16px 40px rgba(0,0,0,.4), 0 0 0 5px rgba(255,255,255,.13); }
@@ -354,7 +355,8 @@
 .reader-ripple { position: absolute; top: -7px; width: 72px; height: 72px; border: 1px solid rgba(255,255,255,.25); border-radius: 50%; animation: ripple 2.6s ease-out infinite; }
 @keyframes ripple { 70%,100% { transform: scale(1.35); opacity: 0; } }
 .reader-label { display: flex; max-width: 150px; margin-top: 8px; flex-direction: column; text-align: center; text-shadow: 0 2px 8px rgba(0,0,0,.7); }
-.reader-label strong { font-size: 11px; letter-spacing: .04em; }.reader-label span { overflow: hidden; margin-top: 2px; color: rgba(255,255,255,.65); font-family: Georgia,serif; font-size: 10px; font-style: italic; text-overflow: ellipsis; white-space: nowrap; }
+.reader-label strong { font-size: 11px; letter-spacing: .04em; }.reader-label span { display: none; overflow: hidden; margin-top: 2px; color: rgba(255,255,255,.65); font-family: Georgia,serif; font-size: 10px; font-style: italic; text-overflow: ellipsis; white-space: nowrap; }
+.reader-marker:hover .reader-label span, .reader-marker-selected .reader-label span { display: block; }
 .presence-loading { position: absolute; left: 50%; top: 48%; display: flex; gap: 12px; transform: translate(-50%,-50%); }
 .presence-loading span { width: 52px; height: 52px; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; background: rgba(255,255,255,.08); animation: loading-reader 1.2s ease-in-out infinite; }
 .presence-loading span:nth-child(2){animation-delay:.15s}.presence-loading span:nth-child(3){animation-delay:.3s}
@@ -402,7 +404,7 @@
   .leave-button { width: 38px; padding: 0; }
   .world-intro { top: 86px; width: 88%; }
   .world-intro h1 { font-size: 29px; }
-  .world-map { inset: 170px 0 116px; }
+  .world-map { inset: 210px 0 116px; }
   .reader-avatar { width: 50px !important; height: 50px !important; }
   .reader-ripple { top: -6px; width: 62px; height: 62px; }
   .reader-label { max-width: 98px; }

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { connectGenrePresence } from "@/lib/presence";
+import { loadSavedReader, saveSavedReader } from "@/lib/saved-reader";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const GENRES = {
@@ -51,9 +52,17 @@ function GenreArtwork({ genre, compact = false }: { genre: Genre; compact?: bool
   );
 }
 
+function withClearPositions(readers: Reader[]) {
+  const count = Math.max(readers.length, 1);
+  return readers.map((reader, index) => {
+    const x = count === 1 ? 50 : 14 + index * (72 / (count - 1));
+    return { ...reader, x, y: 58 };
+  });
+}
+
 function ReaderAvatar({ reader, selected, onSelect }: { reader: Reader; selected: boolean; onSelect: () => void }) {
   return (
-    <button type="button" className={`reader-marker ${selected ? "reader-marker-selected" : ""}`} style={{ left: `${reader.x}%`, top: `${reader.y}%` }} onClick={onSelect} aria-label={`View ${reader.name}, reading ${reader.book}`}>
+    <button type="button" className={`reader-marker ${reader.isDemo ? "" : "reader-marker-live"} ${selected ? "reader-marker-selected" : ""}`} style={{ left: `${reader.x}%`, top: `${reader.y}%` }} onClick={onSelect} aria-label={`View ${reader.name}, reading ${reader.book}`}>
       <span className="reader-ripple" />
       <Avatar className="reader-avatar">{reader.photo ? <AvatarImage src={reader.photo} alt="" /> : null}<AvatarFallback className="reader-fallback">{initials(reader.name)}</AvatarFallback></Avatar>
       <span className="reader-label"><strong>{reader.name}</strong><span>{reader.book}</span></span>
@@ -75,12 +84,36 @@ export default function Home() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [presenceLoading, setPresenceLoading] = useState(true);
   const [presenceError, setPresenceError] = useState(false);
+  const [profileReady, setProfileReady] = useState(false);
+  const warnedPhoto = useRef<string | undefined>(undefined);
 
   const readers = useMemo(() => {
     if (!me) return [];
-    return [me, ...liveReaders.filter((reader) => reader.genre === me.genre && reader.id !== me.id), ...DEMO_READERS.filter((reader) => reader.genre === me.genre)];
+    const live = [me, ...liveReaders.filter((reader) => reader.genre === me.genre && reader.id !== me.id)];
+    const demos = DEMO_READERS.filter((reader) => reader.genre === me.genre);
+    const placed = withClearPositions([...live, ...demos]);
+    return [...placed.slice(live.length), ...placed.slice(0, live.length)];
   }, [liveReaders, me]);
   const selectedReader = readers.find((reader) => reader.id === selectedId) ?? null;
+
+  useEffect(() => {
+    const saved = loadSavedReader();
+    if (saved) {
+      setName(saved.name);
+      setBook(saved.book);
+      if (saved.photo) setPhoto(saved.photo);
+    }
+    setProfileReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!profileReady) return;
+    const saved = saveSavedReader({ name, book, photo });
+    if (photo && !saved.photoSaved && warnedPhoto.current !== photo) {
+      warnedPhoto.current = photo;
+      setError("That photo is too large to keep on this device. Your name and book will still be remembered.");
+    }
+  }, [profileReady, name, book, photo]);
 
   useEffect(() => {
     if (stage !== "world" || !me) return;
@@ -111,7 +144,7 @@ export default function Home() {
     if (!name.trim() || !book.trim()) { setError("Tell us your name and what you’re reading first."); return; }
     setError(""); setStage("entering");
     const reader: Reader = { id: crypto.randomUUID(), name: name.trim(), book: book.trim(), genre, photo, x: Math.round(18 + Math.random() * 64), y: Math.round(27 + Math.random() * 42), lastSeen: Date.now() };
-    window.setTimeout(() => { setMe(reader); setSelectedId(reader.id); setPresenceLoading(true); setStage("world"); }, 950);
+    window.setTimeout(() => { setMe(reader); setSelectedId(null); setPresenceLoading(true); setStage("world"); }, 950);
   }
 
   function leaveWorld() { setStage("onboarding"); setMe(null); setLiveReaders([]); setSelectedId(null); }
@@ -159,7 +192,7 @@ export default function Home() {
             {error ? <p className="form-error" role="alert">{error}</p> : null}<Button type="submit" className="enter-button">Enter this reading world <ArrowRight /></Button>
           </form>
         </div>
-        <p className="privacy-note"><span className="live-dot" /> Your presence disappears when you leave.</p>
+        <p className="privacy-note"><span className="live-dot" /> Your presence disappears when you leave. Your name, photo, and book stay on this device.</p>
       </section>
       <section className="door-panel" aria-label={`${GENRES[genre].label} world preview`}><GenreArtwork genre={genre} compact />
         <div className="door-panel-top"><span>Door <strong>{String(genreKeys.indexOf(genre) + 1).padStart(2, "0")}</strong> / 06</span><span><MapPin /> Shared world</span></div>
