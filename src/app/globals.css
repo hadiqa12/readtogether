@@ -340,6 +340,12 @@
 .door-panel-mystery .genre-art::after {
   background: linear-gradient(180deg, rgba(7,15,36,.34), rgba(7,15,36,.02) 34%, rgba(7,13,31,.9));
 }
+.door-panel-romance .genre-art {
+  background: #b88794 url("/romance-door-portrait.jpg") center top / cover no-repeat;
+}
+.door-panel-romance .genre-art::after {
+  background: linear-gradient(180deg, rgba(72,35,58,.35), rgba(72,35,58,.02) 34%, rgba(55,24,47,.88));
+}
 .door-panel-classics .genre-art {
   background: #30291f url("/classics-door-portrait.jpg") center top / cover no-repeat;
 }
@@ -348,6 +354,7 @@
 }
 .door-panel-fantasy .genre-art > *,
 .door-panel-mystery .genre-art > *,
+.door-panel-romance .genre-art > *,
 .door-panel-classics .genre-art > * {
   display: none;
 }
