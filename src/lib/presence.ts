@@ -1,4 +1,4 @@
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { createBrowserSupabase } from "@/lib/supabase";
 
 const GENRES = new Set([
@@ -10,8 +10,6 @@ const GENRES = new Set([
   "poetry",
 ]);
 
-const PHOTO_TRACK_LIMIT = 200_000;
-
 export type TrackedReader = {
   id: string;
   name: string;
@@ -22,8 +20,23 @@ export type TrackedReader = {
   photo?: string;
 };
 
+const channelQueues = new Map<string, Promise<unknown>>();
+
+function enqueue<T>(topic: string, task: () => Promise<T>) {
+  const previous = channelQueues.get(topic) ?? Promise.resolve();
+  const run = previous.then(task, task);
+  channelQueues.set(
+    topic,
+    run.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return run;
+}
+
 export function presencePayload(reader: TrackedReader): TrackedReader {
-  const payload: TrackedReader = {
+  return {
     id: reader.id,
     name: reader.name,
     book: reader.book,
@@ -31,70 +44,54 @@ export function presencePayload(reader: TrackedReader): TrackedReader {
     x: reader.x,
     y: reader.y,
   };
-  if (reader.photo && reader.photo.length <= PHOTO_TRACK_LIMIT) {
-    payload.photo = reader.photo;
-  }
-  return payload;
 }
 
-export function isTrackedReader(value: unknown): value is TrackedReader {
-  if (!value || typeof value !== "object") return false;
+function coordinate(value: unknown, fallback: number) {
+  const number = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+  return Number.isFinite(number) ? Math.min(100, Math.max(0, number)) : fallback;
+}
+
+export function readerFromPresence(value: unknown): TrackedReader | null {
+  if (!value || typeof value !== "object") return null;
   const reader = value as Partial<TrackedReader>;
-  return (
-    typeof reader.id === "string" &&
-    reader.id.length > 0 &&
-    reader.id.length <= 80 &&
-    typeof reader.name === "string" &&
-    reader.name.length > 0 &&
-    reader.name.length <= 40 &&
-    typeof reader.book === "string" &&
-    reader.book.length > 0 &&
-    reader.book.length <= 80 &&
-    typeof reader.genre === "string" &&
-    GENRES.has(reader.genre) &&
-    typeof reader.x === "number" &&
-    Number.isFinite(reader.x) &&
-    reader.x >= 0 &&
-    reader.x <= 100 &&
-    typeof reader.y === "number" &&
-    Number.isFinite(reader.y) &&
-    reader.y >= 0 &&
-    reader.y <= 100 &&
-    (reader.photo === undefined ||
-      (typeof reader.photo === "string" && reader.photo.length <= 1_500_000))
-  );
+  if (typeof reader.id !== "string" || reader.id.length === 0 || reader.id.length > 80) return null;
+  if (typeof reader.name !== "string" || reader.name.length === 0 || reader.name.length > 40) return null;
+  if (typeof reader.book !== "string" || reader.book.length === 0 || reader.book.length > 80) return null;
+  if (typeof reader.genre !== "string" || !GENRES.has(reader.genre)) return null;
+  return {
+    id: reader.id,
+    name: reader.name,
+    book: reader.book,
+    genre: reader.genre,
+    x: coordinate(reader.x, 50),
+    y: coordinate(reader.y, 58),
+  };
 }
 
 export function readersFromPresence(
-  state: Record<string, TrackedReader[]>,
+  state: Record<string, unknown[]>,
   me: Pick<TrackedReader, "id" | "genre">,
 ) {
   const readers: TrackedReader[] = [];
+  const seen = new Set<string>();
   for (const entries of Object.values(state)) {
     for (const entry of entries) {
-      if (!isTrackedReader(entry) || entry.id === me.id || entry.genre !== me.genre) {
-        continue;
-      }
-      readers.push(entry);
+      const reader = readerFromPresence(entry);
+      if (!reader || reader.id === me.id || reader.genre !== me.genre || seen.has(reader.id)) continue;
+      seen.add(reader.id);
+      readers.push(reader);
     }
   }
   return readers;
 }
 
 async function trackReader(channel: RealtimeChannel, reader: TrackedReader) {
-  const payload = presencePayload(reader);
-  let status = await channel.track(payload);
-  if (status !== "ok" && payload.photo) {
-    status = await channel.track({
-      id: payload.id,
-      name: payload.name,
-      book: payload.book,
-      genre: payload.genre,
-      x: payload.x,
-      y: payload.y,
-    });
-  }
+  const status = await channel.track(presencePayload(reader));
   return status === "ok";
+}
+
+function channelsFor(supabase: SupabaseClient, topic: string) {
+  return supabase.getChannels().filter((existing) => existing.topic === `realtime:${topic}`);
 }
 
 export function connectGenrePresence(
@@ -108,41 +105,77 @@ export function connectGenrePresence(
     return () => {};
   }
 
+  const topic = `reading-world:${me.genre}`;
   let active = true;
   let generation = 0;
   let channel: RealtimeChannel | null = null;
   let retry: number | undefined;
+  let heartbeat: number | undefined;
+
+  const clearTimers = () => {
+    window.clearTimeout(retry);
+    window.clearInterval(heartbeat);
+    retry = undefined;
+    heartbeat = undefined;
+  };
+
+  const publish = (current: RealtimeChannel, generationId: number) => {
+    if (!active || generationId !== generation) return;
+    onReaders(readersFromPresence(current.presenceState(), me));
+    onStatus("live");
+  };
 
   const connect = () => {
     if (!active) return;
-    const current = ++generation;
-    if (channel) void supabase.removeChannel(channel);
+    const generationId = ++generation;
+    clearTimers();
 
-    const next = supabase.channel(`reading-world:${me.genre}`, {
-      config: { presence: { key: me.id, enabled: true } },
-    });
-    channel = next;
-
-    next.on("presence", { event: "sync" }, () => {
-      if (!active || current !== generation) return;
-      onReaders(readersFromPresence(next.presenceState<TrackedReader>(), me));
-      onStatus("live");
-    });
-
-    next.subscribe((status) => {
-      if (!active || current !== generation) return;
-      if (status === "SUBSCRIBED") {
-        void trackReader(next, me).then((ok) => {
-          if (!active || current !== generation) return;
-          onStatus(ok ? "live" : "error");
-        });
-        return;
+    void enqueue(topic, async () => {
+      if (!active || generationId !== generation) return;
+      for (const existing of channelsFor(supabase, topic)) {
+        await supabase.removeChannel(existing);
       }
-      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-        onStatus("error");
-        window.clearTimeout(retry);
-        retry = window.setTimeout(connect, 2_500);
-      }
+      if (!active || generationId !== generation) return;
+
+      const next = supabase.channel(topic, {
+        config: { presence: { key: me.id, enabled: true } },
+      });
+      channel = next;
+
+      const receive = () => publish(next, generationId);
+      next.on("presence", { event: "sync" }, receive);
+      next.on("presence", { event: "join" }, receive);
+      next.on("presence", { event: "leave" }, receive);
+
+      next.subscribe((status) => {
+        if (!active || generationId !== generation) return;
+        if (status === "SUBSCRIBED") {
+          void trackReader(next, me).then((ok) => {
+            if (!active || generationId !== generation) return;
+            if (!ok) {
+              onStatus("error");
+              window.clearTimeout(retry);
+              retry = window.setTimeout(connect, 2_500);
+              return;
+            }
+            publish(next, generationId);
+            window.clearInterval(heartbeat);
+            heartbeat = window.setInterval(() => {
+              if (!active || generationId !== generation) return;
+              void trackReader(next, me).then((stillOk) => {
+                if (!active || generationId !== generation || !stillOk) return;
+                publish(next, generationId);
+              });
+            }, 5_000);
+          });
+          return;
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          onStatus("error");
+          window.clearTimeout(retry);
+          retry = window.setTimeout(connect, 2_500);
+        }
+      });
     });
   };
 
@@ -151,12 +184,13 @@ export function connectGenrePresence(
   return () => {
     active = false;
     generation += 1;
-    window.clearTimeout(retry);
-    if (!channel) return;
+    clearTimers();
     const leaving = channel;
     channel = null;
-    void leaving.untrack().finally(() => {
-      void supabase.removeChannel(leaving);
+    if (!leaving) return;
+    void enqueue(topic, async () => {
+      await leaving.untrack();
+      await supabase.removeChannel(leaving);
     });
   };
 }

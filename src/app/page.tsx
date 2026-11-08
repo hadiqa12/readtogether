@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, Camera, DoorOpen, LoaderCircle, MapPin, Sparkles, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Camera, LoaderCircle, MapPin, Sparkles, Users, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,10 +62,10 @@ function withClearPositions(readers: Reader[]) {
 
 function ReaderAvatar({ reader, selected, onSelect }: { reader: Reader; selected: boolean; onSelect: () => void }) {
   return (
-    <button type="button" className={`reader-marker ${reader.isDemo ? "" : "reader-marker-live"} ${selected ? "reader-marker-selected" : ""}`} style={{ left: `${reader.x}%`, top: `${reader.y}%` }} onClick={onSelect} aria-label={`View ${reader.name}, reading ${reader.book}`}>
+    <button type="button" className={`reader-marker ${reader.isDemo ? "reader-marker-demo" : "reader-marker-live"} ${selected ? "reader-marker-selected" : ""}`} style={{ left: `${reader.x}%`, top: `${reader.y}%` }} onClick={onSelect} aria-label={`View ${reader.name}, reading ${reader.book}`}>
       <span className="reader-ripple" />
       <Avatar className="reader-avatar">{reader.photo ? <AvatarImage src={reader.photo} alt="" /> : null}<AvatarFallback className="reader-fallback">{initials(reader.name)}</AvatarFallback></Avatar>
-      <span className="reader-label"><strong>{reader.name}</strong><span>{reader.book}</span></span>
+      <span className="reader-label"><strong>{reader.name}</strong>{reader.isDemo ? <em>Example</em> : null}<span>{reader.book}</span></span>
     </button>
   );
 }
@@ -90,9 +90,8 @@ export default function Home() {
   const readers = useMemo(() => {
     if (!me) return [];
     const live = [me, ...liveReaders.filter((reader) => reader.genre === me.genre && reader.id !== me.id)];
-    const demos = DEMO_READERS.filter((reader) => reader.genre === me.genre);
-    const placed = withClearPositions([...live, ...demos]);
-    return [...placed.slice(live.length), ...placed.slice(0, live.length)];
+    const demos = live.length === 1 ? DEMO_READERS.filter((reader) => reader.genre === me.genre) : [];
+    return withClearPositions([...live, ...demos]);
   }, [liveReaders, me]);
   const selectedReader = readers.find((reader) => reader.id === selectedId) ?? null;
 
@@ -156,20 +155,27 @@ export default function Home() {
   );
 
   if (stage === "world" && me) {
-    const genreInfo = GENRES[me.genre]; const companions = readers.length - 1;
+    const genreInfo = GENRES[me.genre];
+    const companions = liveReaders.filter((reader) => reader.genre === me.genre && reader.id !== me.id).length;
+    const roomStatus = presenceError
+      ? "Connection paused—trying again…"
+      : presenceLoading
+        ? "Looking for nearby readers…"
+        : companions === 0
+          ? `${me.name} is the only reader on this door. Anyone who enters ${genreInfo.label.toLowerCase()} will appear here.`
+          : `${companions} ${companions === 1 ? "reader is" : "readers are"} here with ${me.name}`;
     return (
       <main className={`reading-world genre-${me.genre}`}><GenreArtwork genre={me.genre} />
         <header className="world-header">
           <button type="button" className="brand-lockup brand-light" onClick={leaveWorld}><span className="brand-mark"><BookOpen /></span><span><strong>Common Margins</strong><small>Read somewhere else</small></span></button>
           <div className="world-header-actions"><div className="genre-chip"><span className="live-dot" />{genreInfo.label}</div><Button variant="ghost" className="leave-button" onClick={leaveWorld}><ArrowLeft /><span className="hidden sm:inline">Choose another door</span></Button></div>
         </header>
-        <section className="world-intro" aria-labelledby="world-title"><p><Sparkles /> {genreInfo.eyebrow}</p><h1 id="world-title">{genreInfo.prompt}</h1><span>{presenceError ? "Connection paused—trying again…" : presenceLoading ? "Looking for nearby readers…" : `${companions} ${companions === 1 ? "reader shares" : "readers share"} this world with ${me.name}`}</span></section>
+        <section className="world-intro" aria-labelledby="world-title"><p><Sparkles /> {genreInfo.eyebrow}</p><h1 id="world-title">{genreInfo.prompt}</h1><span>{roomStatus}</span></section>
         <div className="world-map" aria-label="Readers in this world">
           {presenceLoading ? <div className="presence-loading"><span /><span /><span /></div> : readers.map((reader) => <ReaderAvatar key={reader.id} reader={reader} selected={reader.id === selectedId} onSelect={() => setSelectedId(reader.id)} />)}
-          {!presenceLoading && readers.length === 1 ? <div className="empty-world"><DoorOpen /><strong>{me.name} found a quiet corner.</strong><span>Invite a fellow reader to this genre from any browser or device.</span></div> : null}
         </div>
         <div className="world-footer">
-          <div className="presence-summary"><Users /><div><strong>{presenceError ? "Reconnecting to readers" : presenceLoading ? "Gathering the room" : `${readers.length} in this world`}</strong><span>Live across devices · isolated to the {genreInfo.label.toLowerCase()} door</span></div></div>
+          <div className="presence-summary"><Users /><div><strong>{presenceError ? "Reconnecting to readers" : presenceLoading ? "Gathering the room" : `${companions + 1} reading here`}</strong><span>Same {genreInfo.label.toLowerCase()} door, any device</span></div></div>
           <div className="my-book"><span>{me.name}’s current read</span><strong>{me.book}</strong></div>
         </div>
         {selectedReader ? <aside className="reader-card"><button type="button" onClick={() => setSelectedId(null)} aria-label="Close reader card"><X /></button><Avatar className="reader-card-avatar">{selectedReader.photo ? <AvatarImage src={selectedReader.photo} alt="" /> : null}<AvatarFallback>{initials(selectedReader.name)}</AvatarFallback></Avatar><div><span>Reading in this world</span><strong>{selectedReader.name}</strong><p><BookOpen /> {selectedReader.book}</p></div></aside> : null}

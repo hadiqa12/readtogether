@@ -348,6 +348,7 @@
 .world-map { position: absolute; z-index: 5; inset: 240px 0 100px; }
 .reader-marker { position: absolute; display: flex; transform: translate(-50%,-50%); flex-direction: column; align-items: center; border: 0; background: transparent; color: #fff; animation: marker-in .5s ease both; }
 .reader-marker-live { z-index: 2; }
+.reader-marker-demo { opacity: .72; }
 @keyframes marker-in { from { opacity: 0; transform: translate(-50%,-42%) scale(.8); } }
 .reader-avatar { width: 58px !important; height: 58px !important; border: 3px solid rgba(255,255,255,.86); background: #263a34; box-shadow: 0 12px 30px rgba(0,0,0,.3); transition: transform .25s ease, box-shadow .25s ease; }
 .reader-marker:hover .reader-avatar, .reader-marker-selected .reader-avatar { transform: translateY(-4px) scale(1.07); box-shadow: 0 16px 40px rgba(0,0,0,.4), 0 0 0 5px rgba(255,255,255,.13); }
@@ -355,8 +356,7 @@
 .reader-ripple { position: absolute; top: -7px; width: 72px; height: 72px; border: 1px solid rgba(255,255,255,.25); border-radius: 50%; animation: ripple 2.6s ease-out infinite; }
 @keyframes ripple { 70%,100% { transform: scale(1.35); opacity: 0; } }
 .reader-label { display: flex; max-width: 150px; margin-top: 8px; flex-direction: column; text-align: center; text-shadow: 0 2px 8px rgba(0,0,0,.7); }
-.reader-label strong { font-size: 11px; letter-spacing: .04em; }.reader-label span { display: none; overflow: hidden; margin-top: 2px; color: rgba(255,255,255,.65); font-family: Georgia,serif; font-size: 10px; font-style: italic; text-overflow: ellipsis; white-space: nowrap; }
-.reader-marker:hover .reader-label span, .reader-marker-selected .reader-label span { display: block; }
+.reader-label strong { font-size: 11px; letter-spacing: .04em; }.reader-label em { color: rgba(255,255,255,.55); font-size: 9px; font-style: normal; letter-spacing: .12em; text-transform: uppercase; }.reader-label span { display: block; overflow: hidden; margin-top: 2px; color: rgba(255,255,255,.82); font-family: Georgia,serif; font-size: 11px; font-style: italic; text-overflow: ellipsis; white-space: nowrap; }
 .presence-loading { position: absolute; left: 50%; top: 48%; display: flex; gap: 12px; transform: translate(-50%,-50%); }
 .presence-loading span { width: 52px; height: 52px; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; background: rgba(255,255,255,.08); animation: loading-reader 1.2s ease-in-out infinite; }
 .presence-loading span:nth-child(2){animation-delay:.15s}.presence-loading span:nth-child(3){animation-delay:.3s}
