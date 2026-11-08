@@ -8,6 +8,7 @@ const GENRES = new Set([
   "scifi",
   "classics",
   "poetry",
+  "international",
 ]);
 
 export type TrackedReader = {

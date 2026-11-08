@@ -253,7 +253,7 @@
 .genre-select [data-slot="select-value"] { gap: 8px; }
 .genre-swatch { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: #778a80; box-shadow: 0 0 0 3px rgba(119,138,128,.15); }
 .swatch-fantasy { background: #799c4e; }.swatch-mystery { background: #293958; }.swatch-romance { background: #bc6876; }
-.swatch-scifi { background: #3b9e9c; }.swatch-classics { background: #aa7b41; }.swatch-poetry { background: #78a782; }
+.swatch-scifi { background: #3b9e9c; }.swatch-classics { background: #aa7b41; }.swatch-poetry { background: #78a782; }.swatch-international { background: #c58a50; }
 .form-error { margin: -4px 0; color: #9b3a37; font-size: 12px; }
 .enter-button {
   height: 52px;
@@ -287,6 +287,7 @@
 .genre-scifi.genre-art { background: radial-gradient(circle at 68% 40%, #9dfdf1 0 3%, #6a55c5 12%, transparent 30%), linear-gradient(145deg, #10142e, #342d72 50%, #071d29); }
 .genre-classics.genre-art { background: radial-gradient(circle at 66% 30%, #f0d696 0 5%, transparent 28%), linear-gradient(145deg, #5c4b3b, #9e805c 50%, #3c3028); }
 .genre-poetry.genre-art { background: radial-gradient(circle at 70% 26%, #d5ebcf 0 5%, transparent 27%), linear-gradient(145deg, #526b6a, #89a584 52%, #314e47); }
+.genre-international.genre-art { background: radial-gradient(circle at 70% 28%, #f6d58a 0 5%, transparent 28%), linear-gradient(145deg, #496d67, #a96d47 52%, #3a4035); }
 .world-orb { position: absolute; border-radius: 50%; filter: blur(2px); opacity: .75; }
 .world-orb-one { width: 42vw; height: 42vw; right: -14vw; top: -13vw; border: 1px solid rgba(255,255,255,.25); box-shadow: inset 0 0 90px rgba(255,255,255,.1); }
 .world-orb-two { width: 19vw; height: 19vw; left: 8%; bottom: 11%; background: rgba(209,232,195,.08); border: 1px solid rgba(255,255,255,.2); }
@@ -313,6 +314,7 @@
 .genre-scifi .world-door { border-radius: 50%; border-bottom: clamp(8px, 1vw, 15px) solid rgba(21,30,27,.65); height: clamp(250px, 27vw, 410px); box-shadow: 0 0 100px rgba(105,255,241,.28), inset 0 0 60px rgba(105,255,241,.18); }
 .genre-classics .world-door { border-color: rgba(74,53,34,.72); background: linear-gradient(110deg, rgba(255,231,175,.55), rgba(129,91,50,.18)); }
 .genre-poetry .world-door { border-width: 2px; border-style: dashed; border-radius: 50% 50% 3px 3px; background: rgba(224,245,220,.08); }
+.genre-international .world-door { border-color: rgba(80,55,32,.7); background: linear-gradient(110deg, rgba(255,223,157,.45), rgba(75,121,105,.2)); box-shadow: 0 0 90px rgba(255,209,125,.25), inset 0 0 65px rgba(255,255,255,.2); }
 .world-stars i { position: absolute; z-index: 2; width: 3px; height: 3px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px #fff; animation: float 5s ease-in-out infinite; }
 .world-stars i:nth-child(1){left:12%;top:18%}.world-stars i:nth-child(2){left:81%;top:24%;animation-delay:-1s}.world-stars i:nth-child(3){left:27%;top:65%;animation-delay:-2s}.world-stars i:nth-child(4){left:88%;top:72%;animation-delay:-3s}.world-stars i:nth-child(5){left:45%;top:13%;animation-delay:-4s}
 @keyframes float { 50% { transform: translateY(-12px) scale(1.8); opacity: .45; } }
@@ -364,12 +366,19 @@
 .door-panel-poetry .genre-art::after {
   background: linear-gradient(180deg, rgba(25,52,48,.3), rgba(25,52,48,.02) 36%, rgba(19,45,41,.88));
 }
+.door-panel-international .genre-art {
+  background: #d6b778 url("/international-door-portrait.jpg") center top / cover no-repeat;
+}
+.door-panel-international .genre-art::after {
+  background: linear-gradient(180deg, rgba(50,39,24,.32), rgba(50,39,24,.02) 34%, rgba(47,32,20,.88));
+}
 .door-panel-fantasy .genre-art > *,
 .door-panel-mystery .genre-art > *,
 .door-panel-romance .genre-art > *,
 .door-panel-scifi .genre-art > *,
 .door-panel-classics .genre-art > *,
-.door-panel-poetry .genre-art > * {
+.door-panel-poetry .genre-art > *,
+.door-panel-international .genre-art > * {
   display: none;
 }
 
