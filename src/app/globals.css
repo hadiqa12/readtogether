@@ -328,12 +328,19 @@
 .door-avatars small { margin-left: 20px; color: rgba(255,255,255,.62); font-size: 10px; }
 .door-quote { position: absolute; z-index: 4; right: clamp(28px,4vw,58px); bottom: clamp(26px,4vw,48px); color: rgba(255,255,255,.62); font-family: Georgia, serif; font-size: 11px; font-style: italic; }
 .door-quote span { opacity: .65; }
+.door-panel-fantasy .genre-art {
+  background: #778497 url("/fantasy-door-portrait.jpg") center top / cover no-repeat;
+}
+.door-panel-fantasy .genre-art::after {
+  background: linear-gradient(180deg, rgba(24,24,45,.46), rgba(24,24,45,.04) 30%, rgba(20,17,34,.82));
+}
 .door-panel-classics .genre-art {
   background: #30291f url("/classics-door-portrait.jpg") center top / cover no-repeat;
 }
 .door-panel-classics .genre-art::after {
   background: linear-gradient(180deg, rgba(14,10,7,.04) 42%, rgba(14,10,7,.62));
 }
+.door-panel-fantasy .genre-art > *,
 .door-panel-classics .genre-art > * {
   display: none;
 }
