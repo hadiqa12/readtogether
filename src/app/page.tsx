@@ -200,7 +200,7 @@ export default function Home() {
         </div>
         <p className="privacy-note"><span className="live-dot" /> Your presence disappears when you leave. Your name, photo, and book stay on this device.</p>
       </section>
-      <section className="door-panel" aria-label={`${GENRES[genre].label} world preview`}><GenreArtwork genre={genre} compact />
+      <section className={`door-panel door-panel-${genre}`} aria-label={`${GENRES[genre].label} world preview`}><GenreArtwork genre={genre} compact />
         <div className="door-panel-top"><span>Door <strong>{String(genreKeys.indexOf(genre) + 1).padStart(2, "0")}</strong> / 06</span><span><MapPin /> Shared world</span></div>
         <div className="door-caption"><span>{GENRES[genre].eyebrow}</span><h2>{GENRES[genre].label}</h2><p>{GENRES[genre].prompt}</p><div className="door-avatars">{DEMO_READERS.filter((reader) => reader.genre === genre).slice(0, 3).map((reader) => <Avatar key={reader.id}><AvatarFallback>{initials(reader.name)}</AvatarFallback></Avatar>)}<small>{DEMO_READERS.some((reader) => reader.genre === genre) ? "Readers are already wandering here" : "Be the first through this door"}</small></div></div>
         <div className="door-quote">“Reading is an exercise in empathy.” <span>— Malorie Blackman</span></div>
