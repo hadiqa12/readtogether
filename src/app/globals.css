@@ -329,19 +329,12 @@
 .door-quote { position: absolute; z-index: 4; right: clamp(28px,4vw,58px); bottom: clamp(26px,4vw,48px); color: rgba(255,255,255,.62); font-family: Georgia, serif; font-size: 11px; font-style: italic; }
 .door-quote span { opacity: .65; }
 .door-panel-classics .genre-art {
-  background: #4a3d2f url("/classics-door.jpg") center / cover no-repeat;
-}
-.door-panel-classics .genre-art::before {
-  background: rgba(44,32,22,.32);
-  backdrop-filter: blur(14px);
+  background: #30291f url("/classics-door-portrait.jpg") center top / cover no-repeat;
 }
 .door-panel-classics .genre-art::after {
-  background: url("/classics-door.jpg") center / contain no-repeat;
+  background: linear-gradient(180deg, rgba(14,10,7,.04) 42%, rgba(14,10,7,.62));
 }
-.door-panel-classics .genre-art > *,
-.door-panel-classics .door-panel-top,
-.door-panel-classics .door-caption,
-.door-panel-classics .door-quote {
+.door-panel-classics .genre-art > * {
   display: none;
 }
 
