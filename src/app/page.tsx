@@ -194,7 +194,7 @@ export default function Home() {
         <div className="form-wrap">
           <div className="step-label"><span>01</span> Find your reading world</div>
           <h1>Bring a book.<br />Choose a <em>door.</em></h1>
-          <p className="form-lede">A shared landscape for quiet readers. See who is wandering through the same genre—without interrupting the page.</p>
+          <p className="form-lede">A shared landscape for quiet readers. See who is wandering through the same genre.</p>
           <form onSubmit={enterWorld} className="onboarding-form">
             <div className="photo-name-row"><div><input ref={fileInput} type="file" accept="image/*" className="sr-only" onChange={handlePhoto} aria-label="Upload a profile photo" /><button type="button" className="photo-button" onClick={() => fileInput.current?.click()} aria-label={photo ? "Change profile photo" : "Add profile photo"}><Avatar className="photo-preview">{photo ? <AvatarImage src={photo} alt="" /> : null}<AvatarFallback><Camera /></AvatarFallback></Avatar><span>{photo ? "Change" : "Add photo"}<small>Optional</small></span></button></div><div className="field"><Label htmlFor="name">Your name</Label><Input id="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="How should readers see you?" autoComplete="name" maxLength={40} /></div></div>
             <div className="field"><Label htmlFor="book">What are you reading?</Label><Input id="book" value={book} onChange={(event) => setBook(event.target.value)} placeholder="Book title" maxLength={80} /></div>
