@@ -18,6 +18,7 @@ export type TrackedReader = {
   genre: string;
   x: number;
   y: number;
+  status?: string;
   photo?: string;
 };
 
@@ -44,6 +45,7 @@ export function presencePayload(reader: TrackedReader): TrackedReader {
     genre: reader.genre,
     x: reader.x,
     y: reader.y,
+    ...(reader.status ? { status: reader.status } : {}),
   };
 }
 
@@ -59,6 +61,7 @@ export function readerFromPresence(value: unknown): TrackedReader | null {
   if (typeof reader.name !== "string" || reader.name.length === 0 || reader.name.length > 40) return null;
   if (typeof reader.book !== "string" || reader.book.length === 0 || reader.book.length > 80) return null;
   if (typeof reader.genre !== "string" || !GENRES.has(reader.genre)) return null;
+  const status = typeof reader.status === "string" ? reader.status.trim().slice(0, 80) : "";
   return {
     id: reader.id,
     name: reader.name,
@@ -66,6 +69,7 @@ export function readerFromPresence(value: unknown): TrackedReader | null {
     genre: reader.genre,
     x: coordinate(reader.x, 50),
     y: coordinate(reader.y, 58),
+    ...(status ? { status } : {}),
   };
 }
 

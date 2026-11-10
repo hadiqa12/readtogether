@@ -4,6 +4,7 @@ const PHOTO_KEY = "common-margins.photo";
 export type SavedReader = {
   name: string;
   book: string;
+  status?: string;
   photo?: string;
 };
 
@@ -38,8 +39,9 @@ export function loadSavedReader(): SavedReader | null {
     const parsed = JSON.parse(raw) as Partial<SavedReader>;
     const name = typeof parsed.name === "string" ? parsed.name.slice(0, 40) : "";
     const book = typeof parsed.book === "string" ? parsed.book.slice(0, 80) : "";
-    if (!name && !book && !photo) return null;
-    return { name, book, photo };
+    const status = typeof parsed.status === "string" ? parsed.status.slice(0, 80) : "";
+    if (!name && !book && !status && !photo) return null;
+    return { name, book, status: status || undefined, photo };
   } catch {
     return null;
   }
@@ -51,7 +53,7 @@ export function saveSavedReader(reader: SavedReader) {
 
   let profileSaved = false;
   try {
-    store.setItem(PROFILE_KEY, JSON.stringify({ name: reader.name, book: reader.book }));
+    store.setItem(PROFILE_KEY, JSON.stringify({ name: reader.name, book: reader.book, status: reader.status ?? "" }));
     profileSaved = true;
   } catch {
     profileSaved = false;

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Common Margins — Read Somewhere Else",
+  title: "Reading Together — By Dated Pages",
   description:
     "Step through a genre door and share a quiet reading world with readers nearby.",
 };

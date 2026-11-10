@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, Camera, LoaderCircle, MapPin, Sparkles, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Camera, Info, LoaderCircle, MapPin, Sparkles, Users, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ const GENRES = {
 } as const;
 
 type Genre = keyof typeof GENRES;
-type Reader = { id: string; name: string; book: string; genre: Genre; photo?: string; x: number; y: number; lastSeen: number; isDemo?: boolean };
+type Reader = { id: string; name: string; book: string; genre: Genre; status?: string; photo?: string; x: number; y: number; lastSeen: number; isDemo?: boolean };
 
 const DEMO_READERS: Reader[] = [
   { id: "mira", name: "Mira Chen", book: "Piranesi", genre: "fantasy", x: 23, y: 31, lastSeen: 0, isDemo: true },
@@ -66,7 +66,7 @@ function ReaderAvatar({ reader, selected, onSelect }: { reader: Reader; selected
     <button type="button" className={`reader-marker ${reader.isDemo ? "reader-marker-demo" : "reader-marker-live"} ${selected ? "reader-marker-selected" : ""}`} style={{ left: `${reader.x}%`, top: `${reader.y}%` }} onClick={onSelect} aria-label={`View ${reader.name}, reading ${reader.book}`}>
       <span className="reader-ripple" />
       <Avatar className="reader-avatar">{reader.photo ? <AvatarImage src={reader.photo} alt="" /> : null}<AvatarFallback className="reader-fallback">{initials(reader.name)}</AvatarFallback></Avatar>
-      <span className="reader-label"><strong>{reader.name}</strong>{reader.isDemo ? <em>Example</em> : null}<span>{reader.book}</span></span>
+      <span className="reader-label"><strong>{reader.name}</strong>{reader.isDemo ? <em>Example</em> : null}<span>{reader.book}</span>{reader.status ? <span className="reader-status">{reader.status}</span> : null}</span>
     </button>
   );
 }
@@ -75,8 +75,10 @@ export default function Home() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
   const [book, setBook] = useState("");
+  const [status, setStatus] = useState("");
   const [genre, setGenre] = useState<Genre>("fantasy");
   const [genreOpen, setGenreOpen] = useState(false);
+  const [statusHintOpen, setStatusHintOpen] = useState(false);
   const [photo, setPhoto] = useState<string>();
   const [error, setError] = useState("");
   const [stage, setStage] = useState<"onboarding" | "entering" | "world">("onboarding");
@@ -102,6 +104,7 @@ export default function Home() {
       if (saved) {
         setName(saved.name);
         setBook(saved.book);
+        setStatus(saved.status ?? "");
         if (saved.photo) setPhoto(saved.photo);
       }
       setProfileReady(true);
@@ -111,12 +114,12 @@ export default function Home() {
 
   useEffect(() => {
     if (!profileReady) return;
-    const saved = saveSavedReader({ name, book, photo });
+    const saved = saveSavedReader({ name, book, status, photo });
     if (photo && !saved.photoSaved && warnedPhoto.current !== photo) {
       warnedPhoto.current = photo;
       setError("That photo is too large to keep on this device. Your name and book will still be remembered.");
     }
-  }, [profileReady, name, book, photo]);
+  }, [profileReady, name, book, status, photo]);
 
   useEffect(() => {
     if (stage !== "world" || !me) return;
@@ -146,7 +149,8 @@ export default function Home() {
     event.preventDefault();
     if (!name.trim() || !book.trim()) { setError("Tell us your name and what you’re reading first."); return; }
     setError(""); setStage("entering");
-    const reader: Reader = { id: crypto.randomUUID(), name: name.trim(), book: book.trim(), genre, photo, x: Math.round(18 + Math.random() * 64), y: Math.round(27 + Math.random() * 42), lastSeen: Date.now() };
+    const note = status.trim();
+    const reader: Reader = { id: crypto.randomUUID(), name: name.trim(), book: book.trim(), genre, ...(note ? { status: note } : {}), photo, x: Math.round(18 + Math.random() * 64), y: Math.round(27 + Math.random() * 42), lastSeen: Date.now() };
     window.setTimeout(() => { setMe(reader); setSelectedId(null); setPresenceLoading(true); setStage("world"); }, 950);
   }
 
@@ -171,7 +175,7 @@ export default function Home() {
     return (
       <main className={`reading-world genre-${me.genre}`}><GenreArtwork genre={me.genre} />
         <header className="world-header">
-          <button type="button" className="brand-lockup brand-light" onClick={leaveWorld}><span className="brand-mark"><BookOpen /></span><span><strong>Common Margins</strong><small>Read somewhere else</small></span></button>
+          <button type="button" className="brand-lockup brand-light" onClick={leaveWorld}><span className="brand-mark"><img src="/dated-pages-logo.png" alt="" /></span><span><strong>Reading Together</strong><small>By Dated Pages.</small></span></button>
           <div className="world-header-actions"><div className="genre-chip"><span className="live-dot" />{genreInfo.label}</div><Button variant="ghost" className="leave-button" onClick={leaveWorld}><ArrowLeft /><span className="hidden sm:inline">Choose another door</span></Button></div>
         </header>
         <section className="world-intro" aria-labelledby="world-title"><p><Sparkles /> {genreInfo.eyebrow}</p><h1 id="world-title">{genreInfo.prompt}</h1><span>{roomStatus}</span></section>
@@ -182,7 +186,7 @@ export default function Home() {
           <div className="presence-summary"><Users /><div><strong>{presenceError ? "Reconnecting to readers" : presenceLoading ? "Gathering the room" : `${companions + 1} reading here`}</strong><span>Same {genreInfo.label.toLowerCase()} door, any device</span></div></div>
           <div className="my-book"><span>{me.name}’s current read</span><strong>{me.book}</strong></div>
         </div>
-        {selectedReader ? <aside className="reader-card"><button type="button" onClick={() => setSelectedId(null)} aria-label="Close reader card"><X /></button><Avatar className="reader-card-avatar">{selectedReader.photo ? <AvatarImage src={selectedReader.photo} alt="" /> : null}<AvatarFallback>{initials(selectedReader.name)}</AvatarFallback></Avatar><div><span>Reading in this world</span><strong>{selectedReader.name}</strong><p><BookOpen /> {selectedReader.book}</p></div></aside> : null}
+        {selectedReader ? <aside className="reader-card"><button type="button" onClick={() => setSelectedId(null)} aria-label="Close reader card"><X /></button><Avatar className="reader-card-avatar">{selectedReader.photo ? <AvatarImage src={selectedReader.photo} alt="" /> : null}<AvatarFallback>{initials(selectedReader.name)}</AvatarFallback></Avatar><div><span>Reading in this world</span><strong>{selectedReader.name}</strong><p><BookOpen /> {selectedReader.book}</p>{selectedReader.status ? <p className="reader-card-status">{selectedReader.status}</p> : null}</div></aside> : null}
       </main>
     );
   }
@@ -190,19 +194,40 @@ export default function Home() {
   return (
     <main className="onboarding-shell">
       <section className="onboarding-form-panel">
-        <div className="brand-lockup"><span className="brand-mark"><BookOpen /></span><span><strong>Common Margins</strong><small>Read somewhere else</small></span></div>
+        <div className="brand-lockup"><span className="brand-mark"><img src="/dated-pages-logo.png" alt="" /></span><span><strong>Reading Together</strong><small>By Dated Pages.</small></span></div>
         <div className="form-wrap">
           <div className="step-label"><span>01</span> Find your reading world</div>
           <h1>Bring a book.<br />Choose a <em>door.</em></h1>
-          <p className="form-lede">A shared landscape for quiet readers. See who is wandering through the same genre.</p>
+          <p className="form-lede">A shared landscape for quiet readers. See who is wandering through the same genre. No DMs, likes, or a public review wall. The point of this place is that we read together without interruptions.</p>
           <form onSubmit={enterWorld} className="onboarding-form">
             <div className="photo-name-row"><div><input ref={fileInput} type="file" accept="image/*" className="sr-only" onChange={handlePhoto} aria-label="Upload a profile photo" /><button type="button" className="photo-button" onClick={() => fileInput.current?.click()} aria-label={photo ? "Change profile photo" : "Add profile photo"}><Avatar className="photo-preview">{photo ? <AvatarImage src={photo} alt="" /> : null}<AvatarFallback><Camera /></AvatarFallback></Avatar><span>{photo ? "Change" : "Add photo"}<small>Optional</small></span></button></div><div className="field"><Label htmlFor="name">Your name</Label><Input id="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="How should readers see you?" autoComplete="name" maxLength={40} /></div></div>
             <div className="field"><Label htmlFor="book">What are you reading?</Label><Input id="book" value={book} onChange={(event) => setBook(event.target.value)} placeholder="Book title" maxLength={80} /></div>
+            <div className="field">
+              <div className="field-heading">
+                <Label htmlFor="status">Status</Label>
+                <button
+                  type="button"
+                  className={`field-hint${statusHintOpen ? " is-open" : ""}`}
+                  aria-expanded={statusHintOpen}
+                  aria-label="What status is for"
+                  onMouseEnter={() => setStatusHintOpen(true)}
+                  onMouseLeave={() => setStatusHintOpen(false)}
+                  onFocus={() => setStatusHintOpen(true)}
+                  onBlur={() => setStatusHintOpen(false)}
+                  onClick={() => setStatusHintOpen(true)}
+                >
+                  <Info />
+                  <span id="status-hint" className="field-hint-bubble">why you&apos;re here, how are you feeling, what&apos;s your favorite genre, what do you like to eat, etc.</span>
+                </button>
+                <small>Optional</small>
+              </div>
+              <Input id="status" value={status} onChange={(event) => setStatus(event.target.value)} placeholder="A line about you" maxLength={80} aria-describedby="status-hint" />
+            </div>
             <div className="field"><Label htmlFor="genre">Which door will you take?</Label><Select value={genre} open={genreOpen} onOpenChange={setGenreOpen} onValueChange={(value) => value && setGenre(value as Genre)}><SelectTrigger id="genre" className="genre-select" onClick={() => setGenreOpen(true)}><SelectValue /></SelectTrigger><SelectContent>{genreKeys.map((key) => <SelectItem key={key} value={key}><span className={`genre-swatch swatch-${key}`} />{GENRES[key].label}</SelectItem>)}</SelectContent></Select></div>
             {error ? <p className="form-error" role="alert">{error}</p> : null}<Button type="submit" className="enter-button">Enter this reading world <ArrowRight /></Button>
           </form>
         </div>
-        <p className="privacy-note"><span className="live-dot" /> Your presence disappears when you leave. Your name, photo, and book stay on this device.</p>
+        <p className="privacy-note"><span className="live-dot" /> Your presence disappears when you leave. Your name, photo, book, and status stay on this device.</p>
       </section>
       <section className={`door-panel door-panel-${genre}`} aria-label={`${GENRES[genre].label} world preview`}><GenreArtwork genre={genre} compact />
         <div className="door-panel-top"><span>Door <strong>{String(genreKeys.indexOf(genre) + 1).padStart(2, "0")}</strong> / {String(genreKeys.length).padStart(2, "0")}</span><span><MapPin /> Shared world</span></div>
