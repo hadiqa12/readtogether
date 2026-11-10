@@ -62,11 +62,12 @@ function withClearPositions(readers: Reader[]) {
 }
 
 function ReaderAvatar({ reader, selected, onSelect }: { reader: Reader; selected: boolean; onSelect: () => void }) {
+  const status = reader.status?.trim();
   return (
     <button type="button" className={`reader-marker ${reader.isDemo ? "reader-marker-demo" : "reader-marker-live"} ${selected ? "reader-marker-selected" : ""}`} style={{ left: `${reader.x}%`, top: `${reader.y}%` }} onClick={onSelect} aria-label={`View ${reader.name}, reading ${reader.book}`}>
       <span className="reader-ripple" />
       <Avatar className="reader-avatar">{reader.photo ? <AvatarImage src={reader.photo} alt="" /> : null}<AvatarFallback className="reader-fallback">{initials(reader.name)}</AvatarFallback></Avatar>
-      <span className="reader-label"><strong>{reader.name}</strong>{reader.isDemo ? <em>Example</em> : null}<span>{reader.book}</span>{reader.status ? <span className="reader-status">{reader.status}</span> : null}</span>
+      <span className="reader-label"><strong>{reader.name}</strong><span>{reader.book}</span>{status ? <span className="reader-status">{status}</span> : null}</span>
     </button>
   );
 }
@@ -186,7 +187,7 @@ export default function Home() {
           <div className="presence-summary"><Users /><div><strong>{presenceError ? "Reconnecting to readers" : presenceLoading ? "Gathering the room" : `${companions + 1} reading here`}</strong><span>Same {genreInfo.label.toLowerCase()} door, any device</span></div></div>
           <div className="my-book"><span>{me.name}’s current read</span><strong>{me.book}</strong></div>
         </div>
-        {selectedReader ? <aside className="reader-card"><button type="button" onClick={() => setSelectedId(null)} aria-label="Close reader card"><X /></button><Avatar className="reader-card-avatar">{selectedReader.photo ? <AvatarImage src={selectedReader.photo} alt="" /> : null}<AvatarFallback>{initials(selectedReader.name)}</AvatarFallback></Avatar><div><span>Reading in this world</span><strong>{selectedReader.name}</strong><p><BookOpen /> {selectedReader.book}</p>{selectedReader.status ? <p className="reader-card-status">{selectedReader.status}</p> : null}</div></aside> : null}
+        {selectedReader ? <aside className="reader-card"><button type="button" onClick={() => setSelectedId(null)} aria-label="Close reader card"><X /></button><Avatar className="reader-card-avatar">{selectedReader.photo ? <AvatarImage src={selectedReader.photo} alt="" /> : null}<AvatarFallback>{initials(selectedReader.name)}</AvatarFallback></Avatar><div><span>Reading in this world</span><strong>{selectedReader.name}</strong><p><BookOpen /> {selectedReader.book}</p>{selectedReader.status?.trim() ? <p className="reader-card-status">{selectedReader.status.trim()}</p> : null}</div></aside> : null}
       </main>
     );
   }
